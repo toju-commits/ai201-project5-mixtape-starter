@@ -87,7 +87,21 @@ TODO
 
 ### How I reproduced it
 
-TODO
+I first queried the seeded users and songs from the database to choose a song owner and a different rater. I used `Midnight Drive`, which was shared by `nova`, and used `darius` as the user rating the song.
+
+Before rating the song, I called:
+
+`GET /users/<nova_user_id>/notifications`
+
+The response showed `count: 1`, with one existing `song_added_to_playlist` notification saying that darius added nova's song `Midnight Drive` to a playlist.
+
+Then I called:
+
+`POST /songs/<midnight_drive_song_id>/rate`
+
+with a JSON body containing darius's user id and a score of 5. The response returned a valid rating object with score 5, so the rating itself succeeded.
+
+After that, I called nova's notifications endpoint again. The response still showed `count: 1`, and there was no new notification for the rating. This reproduced the bug: rating another user's shared song succeeds, but the original sharer does not receive a notification.
 
 ### How I found the root cause
 
