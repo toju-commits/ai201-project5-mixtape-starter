@@ -33,19 +33,19 @@ The app uses a route-to-service pattern. Route files handle HTTP request/respons
 
 ### How I reproduced it
 
-TODO
+I ran `pytest tests/` and saw `test_streak_increments_on_sunday` fail. The test listened on Saturday and then Sunday. The expected streak was 2, but the actual streak was 1, meaning the Sunday listen reset instead of continuing the streak.
 
 ### How I found the root cause
 
-TODO
+I traced the listen feature from `POST /songs/<song_id>/listen` in `routes/songs.py` to `record_listening_event()` in `services/streak_service.py`. That function creates the listening event, then calls `update_listening_streak()`, so I inspected the streak update rules there.
 
 ### The root cause
 
-TODO
+`update_listening_streak()` correctly calculated that the previous listen was 1 day ago, but the increment condition also checked `today.weekday() != 6`. Since Python uses `6` for Sunday, a Saturday-to-Sunday listen skipped the increment branch and fell into the reset branch. This violated the stated rule that listening on consecutive calendar days should increment the streak.
 
 ### Fix and side-effect check
 
-TODO
+I removed the Sunday exclusion so any `days_since_last == 1` case increments the streak. I then ran `pytest tests/test_streaks.py` to verify the streak behavior and `pytest tests/` to check the whole project. The fix should make the full suite pass without changing same-day or skipped-day behavior.
 
 ## Issue 2: Friends Listening Now shows people from yesterday
 
@@ -105,16 +105,16 @@ TODO
 
 ### How I reproduced it
 
-TODO
+I ran the baseline test suite with `pytest tests/`. The playlist tests failed because `get_playlist_songs()` returned 4 songs when the seeded playlist contained 5. The order test also showed that `"Track 5"` was missing from the returned list.
 
 ### How I found the root cause
 
-TODO
+I traced the playlist song endpoint from `GET /playlists/<playlist_id>/songs` in `routes/playlists.py` to `get_playlist_songs()` in `services/playlist_service.py`. The route was only returning whatever the service gave it, so the bug had to be in the service logic.
 
 ### The root cause
 
-TODO
+`get_playlist_songs()` queried the songs in the correct playlist order, but the return statement used `songs[:-1]`. In Python, that slice returns every item except the final one, so the last playlist song was always removed before the response was built.
 
 ### Fix and side-effect check
 
-TODO
+I changed the return statement to iterate over `songs` instead of `songs[:-1]`. Then I ran `pytest tests/test_playlists.py`, and all playlist tests passed. I also reran `pytest tests/`, which improved the suite from 3 failures to 1 remaining failure, confirming the playlist bug was fixed without breaking the search or other playlist behavior.
